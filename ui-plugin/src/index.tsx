@@ -11,5 +11,5 @@ if (rootElement) {
     <React.StrictMode>
       <App />
     </React.StrictMode>
-  );  
+  );
 }
