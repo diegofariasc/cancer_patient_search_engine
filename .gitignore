@@ -1,0 +1,35 @@
+# dependencies
+ui-plugin/node_modules/
+
+# production
+ui-plugin/build/
+ui-plugin/dist/
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE or editor config
+.vscode/
+.idea/
+*.swp
+
+# Env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Keys
+*.pem
+*.key
