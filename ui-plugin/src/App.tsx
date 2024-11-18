@@ -4,7 +4,7 @@ import './App.css';
 function App() {
   return (
     <div className="app-wrapper">
-      <span>Hello world!</span>
+      <span>New cancer-patient search engine</span>
     </div>
   );
 }
