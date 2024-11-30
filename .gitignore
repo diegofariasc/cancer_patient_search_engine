@@ -18,9 +18,9 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
-# IDE or editor config
+# IDE or editor config / cache
 .vscode/
-.idea/
+**/__pycache__/
 *.swp
 
 # Env files
@@ -33,3 +33,7 @@ Thumbs.db
 # Keys
 *.pem
 *.key
+*.env
+
+# Databse wallet
+backend/index/database/Wallet_INDEXDATABASE/

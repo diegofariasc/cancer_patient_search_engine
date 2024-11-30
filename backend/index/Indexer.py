@@ -20,16 +20,15 @@ class Indexer:
         }
 
     def __report_progress(self):
-        progress_lines = []
+        progress_indicators = []
         for extractor_name, progress in self.__progress_indicators.items():
             progress_percentage = (progress / Extractor.max_results) * 100
-            progress_line = f"Indexing {extractor_name}: {progress}/{Extractor.max_results} ({progress_percentage:.2f}%)"
-            progress_lines.append(progress_line)
+            progress_indicator = f"{extractor_name}: {progress_percentage:.2f}%"
+            progress_indicators.append(progress_indicator)
 
-        print(self.__progress_indicators)
-        #sys.stdout.write("\r" + "   " * 3 + "\r")
-        #sys.stdout.write("\r".join(progress_lines))
-        #sys.stdout.flush()
+        progress_text = "Indexing " + ", ".join(progress_indicators)
+        sys.stdout.write(f"\r{progress_text}")
+        sys.stdout.flush()
 
     async def __index_document(self, extractor: Extractor, pointer):
         text = await extractor.get_source_text(pointer)
@@ -55,4 +54,4 @@ class Indexer:
 
         await asyncio.gather(*tasks)
 
-        print("Finished indexing process")
+        print("\nFinished indexing process")
