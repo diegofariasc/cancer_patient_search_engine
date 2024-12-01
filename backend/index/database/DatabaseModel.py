@@ -3,6 +3,9 @@ from dotenv import load_dotenv
 import cx_Oracle
 import os
 
+from backend.index.database.entities.Document import Document
+from backend.index.database.entities.Source import Source
+
 
 class DatabaseModel:
     def __init__(self):
@@ -22,65 +25,60 @@ class DatabaseModel:
         # Connect
         self.__connection = cx_Oracle.connect(user, password, dsn=dsn, encoding="UTF-8")
 
-    # Method to execute a command in the database
-    def __execute(self, query: str, isQuery=True):
+    def __execute_query(self, query: str):
         with self.__connection.cursor() as cursor:
             cursor.execute(query)
-            if isQuery:
-                return cursor.fetchall()
-            else:
-                self.__connection.commit()
-                return None
+            return cursor.fetchall()
 
-    # Method to add a new source. Returns the auto-generated id of the new item in the DB
-    def insert_source(self, source_name: str, base_url: str) -> int:
+    def __execute_statement(
+        self, query: str, params: dict, output: dict = None, output_param: str = None
+    ):
+        with self.__connection.cursor() as cursor:
+            cursor.execute(query, params)
+
+            # Check if there's output param
+            if output is not None and output_param is not None:
+                result = cursor.fetchone()  # Execute RETURNING
+                if result:
+                    output[output_param] = result[0]
+
+    def commit_changes(self):
+        with self.__connection.cursor() as cursor:
+            self.__connection.commit()
+
+    def insert_source(self, source: Source) -> int:
+        params = source.to_dict()
+        output = {"id": None}
+
         query = """
-            INSERT INTO SOURCE (SOURCE_NAME, BASE_URL)
-            VALUES (:source_name, :base_url)
-            RETURNING ID INTO :new_id
+        INSERT INTO SOURCE (SOURCE_NAME, BASE_URL, ICON)
+        VALUES (:source_name, :base_url, :icon)
+        RETURNING ID INTO :id
         """
-        new_id = [None]
-        params = (source_name, base_url, new_id)
-        self.__execute(query, params, isQuery=False)
-        return new_id[0]
 
-    # Method to add a new document. Returns the auto-generated id of the new item in the DB
-    def insert_document(
-        self,
-        source_id: int,
-        document_type: str,
-        summary: str,
-        publish_date: str,
-        document_url: str,
-        document_length: int,
-        document_language: str,
-    ) -> int:
+        self.__execute_statement(query, params, output, "id")
+        return output["id"]
+
+    def insert_document(self, document: Document):
+        params = document.to_dict()
+        output = {'id': None}
+
         query = """
-            INSERT INTO DOCUMENT (SOURCE_ID, DOCUMENT_TYPE, SUMMARY, PUBLISH_DATE, DOCUMENT_URL, DOCUMENT_LENGTH, DOCUMENT_LANGUAGE)
-            VALUES (:source_id, :document_type, :summary, TO_DATE(:publish_date, 'YYYY-MM-DD'), :document_url, :document_length, :document_language)
-            RETURNING ID INTO :new_id
+        INSERT INTO DOCUMENT (TITLE, AUTHORS, SUMMARY, DOCUMENT_TYPE, DOI, COUNTRY, PUBLISH_DATE, DOCUMENT_URL, DOCUMENT_LENGTH, DOCUMENT_LANGUAGE, SOURCE_ID)
+        VALUES (:title, :authors, :summary, :document_type, :doi, :country, :publish_date, :document_url, :document_length, :document_language, :source_id)
+        RETURNING ID INTO :id
         """
-        new_id = [None]
-        params = (
-            source_id,
-            document_type,
-            summary,
-            publish_date,
-            document_url,
-            document_length,
-            document_language,
-            new_id,
-        )
-        self.__execute(query, params, isQuery=False)
-        return new_id[0]
+        
+        self.__execute_statement(query, params, output, 'id')
+        return output['id']
 
-    def register_appearances(self, document_id: int, term: str, term_frequency: int):
+    def record_term_frequency(self, document_id: int, term: str, term_frequency: int):
         query = """
             INSERT INTO APPEARS (DOCUMENT_ID, TERM, TERM_FREQUENCY)
             VALUES (:document_id, :term, :term_frequency)
         """
         params = (document_id, term, term_frequency)
-        self.__execute(query, params, isQuery=False)
+        self.__execute_statement(query, params)
 
     def __del__(self):
         self.__connection.close()
