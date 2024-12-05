@@ -1,8 +1,9 @@
 import sys
 import asyncio
 from backend.engine.TermProcessor import TermProcessor
+from backend.index.DataSource import DataSource
 from backend.index.database.DatabaseModel import DatabaseModel
-from backend.index.extraction.Extractor import Extractor
+from backend.index.database.entities.Document import Document
 
 
 class Indexer:
@@ -10,48 +11,53 @@ class Indexer:
         self,
         model: DatabaseModel,
         termProcessor: TermProcessor,
-        extractors: list[Extractor],
+        sources: list[DataSource],
     ):
         self.__model = model
         self.__termProcessor = termProcessor
-        self.__extractors = extractors
-        self.__progress_indicators = {
-            extractor.get_extractor_name(): 0 for extractor in extractors
-        }
+        self.__sources = sources
+        self.__progress_indicators = {source.get_source_name(): 0 for source in sources}
 
-    def __report_progress(self):
-        progress_indicators = []
-        for extractor_name, progress in self.__progress_indicators.items():
-            progress_percentage = (progress / Extractor.max_results) * 100
-            progress_indicator = f"{extractor_name}: {progress_percentage:.2f}%"
-            progress_indicators.append(progress_indicator)
+    async def __index_document(self, source: DataSource, document_data: Document):
+        text = await source.get_document_text(document_data)
+        terms = self.__termProcessor.get_term_frequencies(text)
 
-        progress_text = "Indexing " + ", ".join(progress_indicators)
-        sys.stdout.write(f"\r{progress_text}")
-        sys.stdout.flush()
+        # Add document
+        document_id = self.__model.insert_document(document_data)
 
-    async def __index_document(self, extractor: Extractor, pointer):
-        text = await extractor.get_source_text(pointer)
-        terms = self.__termProcessor.get_terms(text)
-        self.__progress_indicators[extractor.get_extractor_name()] += 1
-        self.__report_progress()
+        # Add terms with their frequency
+        for term in terms:
+            self.__model.record_term_frequency(document_id, term, terms[term])
 
-    async def __index_source(self, extractor: Extractor):
-        pointers = await extractor.get_source_pointers()
+        self.__progress_indicators[source.get_source_name()] += 1
+
+        print(
+            "Successfully indexed document for source:",
+            source.get_source_name(),
+            document_data.get_document_url(),
+        )
+
+    async def __index_documents(self, source: DataSource, source_id: int):
+        documents_data = await source.get_document_collection_data(source_id)
         tasks = []
-        for pointer in pointers:
-            task = self.__index_document(extractor, pointer)
+        for document_data in documents_data:
+            task = self.__index_document(source, document_data)
             tasks.append(task)
         await asyncio.gather(*tasks)
 
-    async def index(self):
+    async def index(self, use_dump_data: bool):
         print("Started indexing process")
 
-        tasks = []
-        for extractor in self.__extractors:
-            task = self.__index_source(extractor)
-            tasks.append(task)
+        if not use_dump_data:
+            tasks = []
+            for source in self.__sources:
+                source_data = await source.get_source_data()
+                source_id = self.__model.insert_source(source_data)
+                task = self.__index_documents(source, source_id)
 
-        await asyncio.gather(*tasks)
+                tasks.append(task)
 
+            await asyncio.gather(*tasks)
+
+        self.__model.commit_insertions()
         print("\nFinished indexing process")

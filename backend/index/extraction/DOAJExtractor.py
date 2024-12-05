@@ -48,7 +48,7 @@ class DOAJExtractor(Extractor):
                                 if bibjson.get("link")
                                 else None
                             )
-       
+
                             if not link or not title or not summary:
                                 continue
 

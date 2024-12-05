@@ -11,8 +11,6 @@ from backend.index.database.entities.Document import Document
 from backend.index.database.entities.Source import Source
 from backend.index.scrapping.utils import get_favicon
 
-from backend.utils import get_text_summary
-
 
 class WebsiteScrapper(DataSource):
     def __init__(
