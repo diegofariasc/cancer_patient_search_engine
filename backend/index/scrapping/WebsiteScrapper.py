@@ -30,7 +30,7 @@ class WebsiteScrapper(DataSource):
         self.__visited_links_lock = asyncio.Lock()
 
     async def get_source_data(self) -> Source:
-        source = Source.from_attributes(
+        source = Source(
             source_name=self.__source_name,
             base_url=self.__base_url,
             icon=get_favicon(self.__base_url),
@@ -195,7 +195,7 @@ class WebsiteScrapper(DataSource):
         if title == None or site_text == "":
             return None
 
-        document = Document.from_attributes(
+        document = Document(
             title=title,
             summary=site_text,
             document_type=DocumentType.WEBSITE,

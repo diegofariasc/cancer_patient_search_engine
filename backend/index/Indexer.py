@@ -1,4 +1,3 @@
-import sys
 import asyncio
 from backend.engine.TermProcessor import TermProcessor
 from backend.index.DataSource import DataSource

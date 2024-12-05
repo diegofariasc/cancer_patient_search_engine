@@ -44,7 +44,7 @@ class COREExtractor(Extractor):
                     if response.status == 200:
                         data = await response.json()
                         return [
-                            Document.from_attributes(
+                            Document(
                                 self._sanitize_text(result["title"]),
                                 self._sanitize_text(result["abstract"]),
                                 DocumentType.PAPER,
@@ -53,6 +53,10 @@ class COREExtractor(Extractor):
                                 datetime.fromisoformat(result["publishedDate"]),
                             )
                             for result in data["results"]
+                            if result["title"]
+                            and result["abstract"]
+                            and result["publishedDate"]
+                            and result["downloadUrl"]
                         ]
                     else:
                         self._log_extraction_error(

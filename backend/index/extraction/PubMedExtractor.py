@@ -57,9 +57,9 @@ class PubMedExtractor(Extractor):
                     if not title or not summary:
                         continue
 
-                    document = Document.from_attributes(
-                        title=title,
-                        summary=summary,
+                    document = Document(
+                        title=self._sanitize_text(title),
+                        summary=self._sanitize_text(summary),
                         document_type=DocumentType.PAPER,
                         document_url=f"https://www.ncbi.nlm.nih.gov/pmc/articles/{document_id}/pdf/",
                         source_id=source_id,

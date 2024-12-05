@@ -13,7 +13,7 @@ import aiohttp
 
 
 class Extractor(DataSource):
-    max_results = 1
+    max_results = 1000
 
     def __init__(
         self, extractor_name: str, base_url: str, use_full_text=True, debug_mode=False
@@ -25,7 +25,7 @@ class Extractor(DataSource):
         super().__init__()
 
     async def get_source_data(self) -> Source:
-        source = Source.from_attributes(
+        source = Source(
             source_name=self._extractorName,
             base_url=self._base_url,
             icon=get_favicon(self._base_url),

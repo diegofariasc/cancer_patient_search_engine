@@ -19,7 +19,7 @@ def main():
     model = DatabaseModel()
     termProcessor = TermProcessor()
     debug_mode = False
-    use_full_text = True
+    use_full_text = False
 
     sources = [
         ArXivExtractor(use_full_text=use_full_text, debug_mode=debug_mode),

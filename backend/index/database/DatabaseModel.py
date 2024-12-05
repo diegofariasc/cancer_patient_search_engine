@@ -1,8 +1,14 @@
+import base64
+from datetime import datetime
 import json
+import time
 import cx_Oracle
 import os
 
 from dotenv import load_dotenv
+from backend.documentTypes import DocumentLanguage
+from backend.engine.TermProcessor import TermProcessor
+from backend.index.database.entities.DocumentStatistics import DocumentStatistics
 from backend.index.database.entities.Document import Document
 from backend.index.database.entities.Source import Source
 
@@ -35,12 +41,12 @@ class DatabaseModel:
         self.__insertions_file_path = f"{current_directory}/insertions.dbmodel.dumpdata"
 
     def insert_source(self, source: Source) -> int:
-        db_tuple = source.to_db_tuple()
+        db_tuple = source.to_dict()
         self.__sources_to_insert.append(db_tuple)
         return len(self.__sources_to_insert)
 
     def insert_document(self, document: Document) -> int:
-        db_tuple = document.to_db_tuple()
+        db_tuple = document.to_tuple()
         self.__documents_to_insert.append(db_tuple)
         return len(self.__documents_to_insert)
 
@@ -206,8 +212,7 @@ class DatabaseModel:
         return os.path.exists(self.__insertions_file_path)
 
     def delete_insertions_record(self):
-        # return os.remove(self.__insertions_file_path)
-        pass
+        return os.remove(self.__insertions_file_path)
 
     def load_insertions_record(self):
         data = self.__deserialize_data(self.__insertions_file_path)
@@ -216,6 +221,92 @@ class DatabaseModel:
             self.__documents_to_insert = data["documents_to_insert"]
             self.__document_lengths = data["document_lengths"]
             self.__inverted_index = data["inverted_index"]
+
+    def get_document_statistics(self) -> DocumentStatistics:
+        query = f"""
+        SELECT DOCUMENT_COUNT,AVERAGE_DOCUMENT_LENGTH 
+        FROM DOCUMENT_STATISTICS 
+        """
+        result = self.__execute__query(query)
+        if len(result) < 1:
+            return None
+
+        return DocumentStatistics(result[0][0], result[0][1])
+
+    def get_ranked_documents_dictionaries(
+        self,
+        statistics: DocumentStatistics,
+        termProcessor: TermProcessor,
+        query: str,
+        k1: float = 1.5,
+        b: float = 0.75,
+        page: int = 1,
+        limit: int = 10,
+        max_summary_len: str = 1000,
+    ) -> list[dict]:
+        terms = termProcessor.get_terms(query)
+        print("terms", terms)
+
+        query_placeholder = " OR ".join(
+            [f"AP.TERM = :term_{i}" for i in range(len(terms))]
+        )
+
+        offset = (page - 1) * limit
+        params = {
+            "offset": offset,
+            "limit": limit,
+            "k1": k1,
+            "b": b,
+            "max_summary_len": max_summary_len,
+            "avdl": statistics.get_average_document_length(),
+        }
+
+        # Add terms to params dictionary safely
+        for i, term in enumerate(terms):
+            params[f"term_{i}"] = term
+
+        sql = f"""
+        WITH BM25_SCORES AS (
+            SELECT D.ID, SUM( (AP.TERM_FREQUENCY * (:k1 + 1)) / (AP.TERM_FREQUENCY + :k1 * (1 - :b + :b * D.DOCUMENT_LENGTH / :avdl))) AS BM25_SCORE
+            FROM DOCUMENT D
+            JOIN APPEARS AP ON D.ID = AP.DOCUMENT_ID
+            WHERE {query_placeholder if query_placeholder else "1=1"}
+            GROUP BY ID
+        )
+        SELECT TITLE, DBMS_LOB.SUBSTR(SUMMARY, :max_summary_len, 1) AS SUMMARY, DOCUMENT_TYPE, PUBLISH_DATE, DOCUMENT_URL, DOCUMENT_LANGUAGE, SOURCE_ID
+        FROM DOCUMENT 
+        NATURAL JOIN BM25_SCORES
+        ORDER BY BM25_SCORE DESC
+        OFFSET :offset ROWS
+        FETCH NEXT :limit ROWS ONLY
+        """
+
+        result = self.__execute__query(sql, params)
+
+        document_keys = [
+            "TITLE",
+            "SUMMARY",
+            "DOCUMENT_TYPE",
+            "PUBLISH_DATE",
+            "DOCUMENT_URL",
+            "DOCUMENT_LANGUAGE",
+            "SOURCE_ID",
+        ]
+
+        documents_dictionaries = []
+        for row in result:
+            dictionary = {}
+            for i, key in enumerate(document_keys):
+                dictionary[key] = row[i]
+
+            documents_dictionaries.append(dictionary)
+
+        return documents_dictionaries
+
+    def keep_connection_alive(self):
+        while True:
+            self.__execute__query("SELECT 1 FROM DUAL")
+            time.sleep(60)
 
     def commit_insertions(self):
         print("Started bulk transactions to database")

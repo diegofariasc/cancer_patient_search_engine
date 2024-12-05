@@ -53,13 +53,12 @@ class DOAJExtractor(Extractor):
                                 continue
 
                             documents.append(
-                                Document.from_attributes(
+                                Document(
                                     self._sanitize_text(title),
                                     self._sanitize_text(summary),
                                     DocumentType.PAPER,
                                     link,
                                     source_id,
-                                    datetime.fromisoformat(bibjson["created_date"]),
                                 )
                             )
 

@@ -32,8 +32,13 @@ class ArXivExtractor(Extractor):
             )
 
             summary = elements_dict["summary"].text
-            document = Document.from_attributes(
-                title=self._sanitize_text(elements_dict["title"].text),
+            title = elements_dict["title"].text
+
+            if not title or not summary:
+                continue
+
+            document = Document(
+                title=self._sanitize_text(title),
                 summary=self._sanitize_text(summary),
                 document_type=DocumentType.PAPER,
                 document_url=elements_dict["id"].text.replace("/abs/", "/pdf/"),
