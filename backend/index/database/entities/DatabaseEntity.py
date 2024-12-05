@@ -13,5 +13,5 @@ class DatabaseEntity(ABC):
         pass
 
     @abstractmethod
-    def to_dict(self) -> dict:
+    def to_db_tuple(self) -> dict:
         pass

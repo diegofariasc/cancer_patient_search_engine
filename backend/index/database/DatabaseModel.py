@@ -1,8 +1,8 @@
-from dotenv import load_dotenv
-
+import json
 import cx_Oracle
 import os
 
+from dotenv import load_dotenv
 from backend.index.database.entities.Document import Document
 from backend.index.database.entities.Source import Source
 
@@ -25,60 +25,224 @@ class DatabaseModel:
         # Connect
         self.__connection = cx_Oracle.connect(user, password, dsn=dsn, encoding="UTF-8")
 
-    def __execute_query(self, query: str):
-        with self.__connection.cursor() as cursor:
-            cursor.execute(query)
-            return cursor.fetchall()
+        # Temp variables for insertions. Avoid single slow insertions
+        self.__sources_to_insert: list[tuple] = []
+        self.__documents_to_insert: list[tuple] = []
+        self.__document_lengths = {}
+        self.__inverted_index = {}
 
-    def __execute_statement(
-        self, query: str, params: dict, output: dict = None, output_param: str = None
-    ):
-        with self.__connection.cursor() as cursor:
-            cursor.execute(query, params)
-
-            # Check if there's output param
-            if output is not None and output_param is not None:
-                result = cursor.fetchone()  # Execute RETURNING
-                if result:
-                    output[output_param] = result[0]
-
-    def commit_changes(self):
-        with self.__connection.cursor() as cursor:
-            self.__connection.commit()
+        current_directory = os.path.dirname(os.path.abspath(__file__))
+        self.__insertions_file_path = f"{current_directory}/insertions.dbmodel.dumpdata"
 
     def insert_source(self, source: Source) -> int:
-        params = source.to_dict()
-        output = {"id": None}
+        db_tuple = source.to_db_tuple()
+        self.__sources_to_insert.append(db_tuple)
+        return len(self.__sources_to_insert)
 
-        query = """
-        INSERT INTO SOURCE (SOURCE_NAME, BASE_URL, ICON)
-        VALUES (:source_name, :base_url, :icon)
-        RETURNING ID INTO :id
-        """
-
-        self.__execute_statement(query, params, output, "id")
-        return output["id"]
-
-    def insert_document(self, document: Document):
-        params = document.to_dict()
-        output = {'id': None}
-
-        query = """
-        INSERT INTO DOCUMENT (TITLE, AUTHORS, SUMMARY, DOCUMENT_TYPE, DOI, COUNTRY, PUBLISH_DATE, DOCUMENT_URL, DOCUMENT_LENGTH, DOCUMENT_LANGUAGE, SOURCE_ID)
-        VALUES (:title, :authors, :summary, :document_type, :doi, :country, :publish_date, :document_url, :document_length, :document_language, :source_id)
-        RETURNING ID INTO :id
-        """
-        
-        self.__execute_statement(query, params, output, 'id')
-        return output['id']
+    def insert_document(self, document: Document) -> int:
+        db_tuple = document.to_db_tuple()
+        self.__documents_to_insert.append(db_tuple)
+        return len(self.__documents_to_insert)
 
     def record_term_frequency(self, document_id: int, term: str, term_frequency: int):
-        query = """
-            INSERT INTO APPEARS (DOCUMENT_ID, TERM, TERM_FREQUENCY)
-            VALUES (:document_id, :term, :term_frequency)
-        """
-        params = (document_id, term, term_frequency)
-        self.__execute_statement(query, params)
+        if document_id in self.__document_lengths:
+            self.__document_lengths[document_id] += term_frequency
+        else:
+            self.__document_lengths[document_id] = term_frequency
 
-    def __del__(self):
-        self.__connection.close()
+        if term not in self.__inverted_index:
+            self.__inverted_index[term] = {}
+
+        document_dict = self.__inverted_index[term]
+        document_dict[document_id] = term_frequency
+
+    def __execute__query(
+        self,
+        statement: str,
+        params: dict = {},
+    ):
+        with self.__connection.cursor() as cursor:
+            try:
+                cursor.execute(statement, params)
+                result = cursor.fetchall()
+                return result
+            except Exception as e:
+                print("Database error with query:", f"'{statement}'", e)
+                return []
+
+    def __execute_statement(
+        self,
+        statement: str,
+        params: dict = {},
+    ):
+        with self.__connection.cursor() as cursor:
+            try:
+                cursor.execute(statement, params)
+                self.__connection.commit()
+            except Exception as e:
+                print("database error with statement:", f"'{statement}'", e)
+                raise e
+
+    def __execute_bulk_statement(
+        self,
+        statement: str,
+        params: list = [],
+    ):
+        with self.__connection.cursor() as cursor:
+            try:
+                cursor.executemany(statement, params)
+                self.__connection.commit()
+            except Exception as e:
+                print("database error with statement:", f"'{statement}'")
+                raise e
+
+    def __bulk_insert_sources(self):
+        statement = """
+        INSERT INTO SOURCE (SOURCE_NAME, BASE_URL, ICON)
+        VALUES (:source_name, :base_url, :icon)
+        """
+        self.__execute_bulk_statement(statement, self.__sources_to_insert)
+
+    def __bulk_insert_documents(self):
+        # Add length to documents
+
+        documents_tuples_with_length = []
+        for i, document_tuple in enumerate(self.__documents_to_insert):
+            changed_tuple = tuple(
+                list(document_tuple)
+                + [
+                    (
+                        self.__document_lengths[str(i + 1)]
+                        if str(i + 1) in self.__document_lengths
+                        else 0
+                    )
+                ]
+            )
+            documents_tuples_with_length.append(changed_tuple)
+
+        statement = """
+        INSERT INTO DOCUMENT (TITLE, SUMMARY, DOCUMENT_TYPE, PUBLISH_DATE, DOCUMENT_URL, DOCUMENT_LANGUAGE, SOURCE_ID, DOCUMENT_LENGTH)
+        VALUES (:title, :summary, :document_type, :publish_date, :document_url, :document_language, :source_id, :document_length)
+        """
+        self.__execute_bulk_statement(statement, documents_tuples_with_length)
+
+    def __bulk_insert_terms(self):
+        statement = """
+        INSERT INTO TERM (TERM, DOCUMENT_FREQUENCY, IDF)
+        VALUES(:term, :document_frequency, :idf)
+        """
+        term_set = set(self.__inverted_index.keys())
+        document_count = len(self.__documents_to_insert)
+        self.__execute_bulk_statement(
+            statement,
+            [
+                (
+                    term,
+                    len(self.__inverted_index[term]),
+                    document_count / len(self.__inverted_index[term]),
+                )
+                for term in term_set
+            ],
+        )
+
+    def __bulk_register_appearances(self):
+        statement = """
+        INSERT INTO APPEARS (DOCUMENT_ID, TERM, TERM_FREQUENCY)
+        VALUES (:document_id, :term, :term_frequency)
+        """
+        appearances = [
+            (document_id, term, freq)
+            for term, documents in self.__inverted_index.items()
+            for document_id, freq in documents.items()
+        ]
+        self.__execute_bulk_statement(statement, appearances)
+
+    def __register_document_statistics(self):
+        statement = """
+        INSERT INTO DOCUMENT_STATISTICS (DOCUMENT_COUNT, AVERAGE_DOCUMENT_LENGTH)
+        VALUES (:document_count, :average_document_length)
+        """
+        document_count = len(self.__documents_to_insert)
+        average_document_length = (
+            sum(self.__document_lengths.values()) / document_count
+            if document_count > 0
+            else 0
+        )
+        self.__execute_statement(statement, (document_count, average_document_length))
+
+    def get_sources(self):
+        statement = """
+        SELECT * FROM SOURCE
+        """
+        return self.__execute__query(statement)
+
+    def __serialize_data(self, filename: str, data):
+        try:
+            with open(filename, "w") as file:
+                json.dump(data, file, default=str, indent=4)
+        except Exception as e:
+            print(f"Error serializing data:", e)
+            raise e
+
+    def __deserialize_data(self, filename: str):
+        try:
+            with open(filename, "r") as file:
+                data = json.load(file)
+            return data
+        except Exception:
+            return None
+
+    # Locally store insertions to prevent data loss
+    def __locally_save_insertions(self):
+        insertions_data = {
+            "sources_to_insert": self.__sources_to_insert,
+            "documents_to_insert": self.__documents_to_insert,
+            "document_lengths": self.__document_lengths,
+            "inverted_index": self.__inverted_index,
+        }
+        self.__serialize_data(self.__insertions_file_path, insertions_data)
+
+    def is_insertions_record_available(self):
+        return os.path.exists(self.__insertions_file_path)
+
+    def delete_insertions_record(self):
+        # return os.remove(self.__insertions_file_path)
+        pass
+
+    def load_insertions_record(self):
+        data = self.__deserialize_data(self.__insertions_file_path)
+        if data:
+            self.__sources_to_insert = data["sources_to_insert"]
+            self.__documents_to_insert = data["documents_to_insert"]
+            self.__document_lengths = data["document_lengths"]
+            self.__inverted_index = data["inverted_index"]
+
+    def commit_insertions(self):
+        print("Started bulk transactions to database")
+        print(
+            "Commiting:",
+            len(self.__sources_to_insert),
+            "sources,",
+            len(self.__documents_to_insert),
+            "documents,",
+            len(set(self.__inverted_index.keys())),
+            "terms",
+        )
+
+        print(
+            f"Auto saving insertions record into {self.__insertions_file_path} in case of failure..."
+        )
+        self.__locally_save_insertions()
+        print(
+            f"Insertions record auto-saved to {self.__insertions_file_path}. Proceeding to database operations"
+        )
+
+        self.__bulk_insert_sources()
+        self.__bulk_insert_documents()
+        self.__bulk_insert_terms()
+        self.__bulk_register_appearances()
+        self.__register_document_statistics()
+
+        print("Database operations completed")
+        self.delete_insertions_record()
+        print("Insertions record automatically delete")

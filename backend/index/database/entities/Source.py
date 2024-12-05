@@ -19,16 +19,15 @@ class Source(DatabaseEntity):
 
     @classmethod
     def from_attributes(
-        cls, id: int, source_name: str, base_url: str, icon: bytes
+        cls, source_name: str, base_url: str, icon: bytes | None
     ) -> "Source":
         source = cls()
-        source.__id = id
         source.__source_name = source_name
         source.__base_url = base_url
         source.__icon = icon
         return source
 
-    def to_dict(self) -> dict:
+    def to_db_tuple(self) -> dict:
         return {
             "source_name": self.__source_name,
             "base_url": self.__base_url,
