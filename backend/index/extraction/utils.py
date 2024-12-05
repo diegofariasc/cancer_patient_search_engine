@@ -1,29 +1,18 @@
-import aiohttp
-from io import BytesIO
-from pdfminer.high_level import extract_text
+from xml.etree.ElementTree import Element
 
 
-async def download_pdf(url, headers, debugMode=False) -> bytes:
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url, headers=headers) as response:
-                if response.status == 200:
-                    return await response.read()
-                else:
-                    if debugMode:
-                        print(f"Error downloading PDF from url '{url}': {response.status}")
-                    return b""
-        except aiohttp.ClientError as e:
-            if debugMode:
-                print(f"Error in PDF download HTTP request for url '{url}': {e}")
-            return b""
+def find_all_elements_by_atom_xpath(element: Element, field_name: str) -> list[Element]:
+    return element.findall("{http://www.w3.org/2005/Atom}" + field_name)
 
 
-async def get_pdf_text(pdf_data: bytes, debugMode=False) -> str:
-    try:
-        with BytesIO(pdf_data) as pdf_file:
-            return extract_text(pdf_file)
-    except Exception as e:
-        if debugMode:
-            print(f"Error getting PDF text: {e}")
-        return ""
+def find_element_by_atom_xpath(element: Element, field_name: str) -> Element:
+    return element.find("{http://www.w3.org/2005/Atom}" + field_name)
+
+
+def find_elements_by_atom_xpath(
+    element: Element, field_names: list[str]
+) -> dict[str, Element]:
+    return {
+        field_name: find_element_by_atom_xpath(element, field_name)
+        for field_name in field_names
+    }
