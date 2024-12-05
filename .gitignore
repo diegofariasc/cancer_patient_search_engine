@@ -35,5 +35,8 @@ Thumbs.db
 *.key
 *.env
 
+# dump data
+*.dbmodel.dumpdata
+
 # Databse wallet
 backend/index/database/Wallet_INDEXDATABASE/
