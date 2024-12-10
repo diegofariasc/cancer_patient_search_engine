@@ -178,10 +178,32 @@ class DatabaseModel:
 
     def get_sources(self):
         statement = """
-        SELECT * FROM SOURCE
+        SELECT ID, SOURCE_NAME, BASE_URL, ICON
+        FROM SOURCE
         """
-        return self.__execute__query(statement)
 
+        document_keys = [
+            "ID",
+            "SOURCE_NAME",
+            "BASE_URL",
+            "ICON",
+        ]
+
+        result = self.__execute__query(statement)
+
+        sources_dictionaries = []
+        for row in result:
+            dictionary = {}
+            for i, key in enumerate(document_keys):
+                if key == "ICON":
+                    dictionary[key] = base64.b64encode(row[i].read()).decode('utf-8') if row[i] else None
+                else:
+                    dictionary[key] = row[i]
+
+            sources_dictionaries.append(dictionary)
+
+        return sources_dictionaries
+    
     def __serialize_data(self, filename: str, data):
         try:
             with open(filename, "w") as file:
@@ -245,7 +267,6 @@ class DatabaseModel:
         max_summary_len: str = 1000,
     ) -> list[dict]:
         terms = termProcessor.get_terms(query)
-        print("terms", terms)
 
         query_placeholder = " OR ".join(
             [f"AP.TERM = :term_{i}" for i in range(len(terms))]
@@ -275,8 +296,8 @@ class DatabaseModel:
         )
         SELECT TITLE, DBMS_LOB.SUBSTR(SUMMARY, :max_summary_len, 1) AS SUMMARY, DOCUMENT_TYPE, PUBLISH_DATE, DOCUMENT_URL, DOCUMENT_LANGUAGE, SOURCE_ID
         FROM DOCUMENT 
-        NATURAL JOIN BM25_SCORES
-        ORDER BY BM25_SCORE DESC
+        LEFT JOIN BM25_SCORES ON BM25_SCORES.ID = DOCUMENT.ID
+        ORDER BY COALESCE(BM25_SCORE, 0) DESC
         OFFSET :offset ROWS
         FETCH NEXT :limit ROWS ONLY
         """
