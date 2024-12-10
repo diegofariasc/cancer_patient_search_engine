@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 import "./styles.less";
 
@@ -9,10 +9,37 @@ export enum LogoElementSize {
 
 export type LogoElementProps = {
     size?: LogoElementSize;
+    windowTrimSize?: number;
 };
 
-export const LogoElement: React.FC<LogoElementProps> = ({ size = LogoElementSize.Large }) => {
+export const LogoElement: React.FC<LogoElementProps> = ({ size = LogoElementSize.Large, windowTrimSize }) => {
     const height = `var(--chakra-fontSizes-${size === LogoElementSize.Large ? 5 : 3}xl)`;
+
+    const [hideLogoText, setHideLogoText] = useState<boolean>(
+        !windowTrimSize || window.innerWidth >= windowTrimSize
+    );
+
+    useEffect(() => {
+        const debounce = (func: Function, wait: number) => {
+            let timeout: number;
+            return (...args: any[]) => {
+                clearTimeout(timeout);
+                timeout = window.setTimeout(() => func(...args), wait);
+            };
+        };
+
+        const handleResize = debounce(() => {
+            setHideLogoText(window.innerWidth <= 768);
+        }, 200);
+
+        window.addEventListener("resize", handleResize);
+
+        handleResize();
+
+        return () => {
+            window.removeEventListener("resize", handleResize);
+        };
+    }, []);
 
     return (
         <div className="title-wrapper">
@@ -60,14 +87,16 @@ export const LogoElement: React.FC<LogoElementProps> = ({ size = LogoElementSize
                     />
                 </g>
             </svg>
-            <div>
-                <span className="title-first-word" style={{ fontSize: height }}>
-                    search
-                </span>
-                <span className="title-second-word" style={{ fontSize: height }}>
-                    cancer
-                </span>
-            </div>
+            {(!windowTrimSize || window.innerWidth > windowTrimSize) && (
+                <div>
+                    <span className="title-first-word" style={{ fontSize: height }}>
+                        search
+                    </span>
+                    <span className="title-second-word" style={{ fontSize: height }}>
+                        cancer
+                    </span>
+                </div>
+            )}
         </div>
     );
 };

@@ -55,7 +55,7 @@ export const ResultsPage: React.FC = () => {
             <div className="results-page-content">
                 <div className="results-page-header">
                     <div className="results-page-search-area">
-                        <LogoElement size={LogoElementSize.Small} />
+                        <LogoElement size={LogoElementSize.Small} windowTrimSize={768} />
                         <div className="results-page-search-bar">
                             <Input
                                 defaultValue={urlQuery}
