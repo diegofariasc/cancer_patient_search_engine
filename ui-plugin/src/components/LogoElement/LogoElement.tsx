@@ -16,7 +16,7 @@ export const LogoElement: React.FC<LogoElementProps> = ({ size = LogoElementSize
     const height = `var(--chakra-fontSizes-${size === LogoElementSize.Large ? 5 : 3}xl)`;
 
     const [hideLogoText, setHideLogoText] = useState<boolean>(
-        !windowTrimSize || window.innerWidth >= windowTrimSize
+        !!windowTrimSize && window.innerWidth <= windowTrimSize
     );
 
     useEffect(() => {
@@ -29,7 +29,9 @@ export const LogoElement: React.FC<LogoElementProps> = ({ size = LogoElementSize
         };
 
         const handleResize = debounce(() => {
-            setHideLogoText(window.innerWidth <= 768);
+            if (windowTrimSize) {
+                setHideLogoText(window.innerWidth <= windowTrimSize);
+            }
         }, 200);
 
         window.addEventListener("resize", handleResize);
@@ -87,7 +89,7 @@ export const LogoElement: React.FC<LogoElementProps> = ({ size = LogoElementSize
                     />
                 </g>
             </svg>
-            {(!windowTrimSize || window.innerWidth > windowTrimSize) && (
+            {!hideLogoText && (
                 <div>
                     <span className="title-first-word" style={{ fontSize: height }}>
                         search
