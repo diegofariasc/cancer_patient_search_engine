@@ -10,7 +10,7 @@ export const useDocumentsWithSourceDataList = (query: string, page: number) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string>();
 
-    const { sourcesMap } = useDataCache();
+    const { sourcesRecord, initCache } = useDataCache();
 
     const refreshDocuments = useCallback(async () => {
         setLoading(true);
@@ -23,8 +23,9 @@ export const useDocumentsWithSourceDataList = (query: string, page: number) => {
                 maxSummaryLen: DEFAULT_MAX_SUMMARY_LENGTH,
             });
 
+            const initializedCacheSources = sourcesRecord || (await initCache())?.sources || {};
             const documentsWithSource = documents.map((item) => {
-                const sourceData = sourcesMap || {};
+                const sourceData = initializedCacheSources?.[item.sourceId];
                 const documentWithSource: DocumentWithSourceData = {
                     ...sourceData,
                     ...item,
@@ -38,7 +39,7 @@ export const useDocumentsWithSourceDataList = (query: string, page: number) => {
             setError(errorMessage);
         }
         setLoading(false);
-    }, [query, page, sourcesMap]);
+    }, [query, page, sourcesRecord]);
 
     return { data, loading, error, refreshDocuments };
 };
