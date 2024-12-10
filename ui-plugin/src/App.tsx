@@ -1,12 +1,13 @@
-import React from 'react';
-import './App.css';
+import React from "react";
+import "./App.css";
+import { MainPage } from "./components/MainPage/MainPage";
 
 function App() {
-  return (
-    <div className="app-wrapper">
-      <span>New cancer-patient search engine</span>
-    </div>
-  );
+    return (
+        <div className="app-wrapper">
+            <MainPage />
+        </div>
+    );
 }
 
 export default App;

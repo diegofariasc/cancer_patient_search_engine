@@ -1,0 +1,3 @@
+export const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_PAGE_BLOCK_SIZE = 5;
+export const DEFAULT_MAX_SUMMARY_LENGTH = 500;
