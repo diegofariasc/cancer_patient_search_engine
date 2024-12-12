@@ -32,19 +32,16 @@ Amid this scenario **Search Cancer** has been created. This is a a specialized s
 In research paper respositories, only cancer-related papers are indexed
 
 #### Retrieval mechanism
-The project is primarily supported by **BM25**. This model determines the relevance of a document \(d\) given a query \(q\) through the frequency of the terms that constitute it \(c(w,d)\), the inverse frequency of the document \(IDF(w)\) and two free variables \(k\) and \(b \in [0,1]\), which control the impact of term frequency and the degree of normalization that is applied to the scores of each document.
+The project is primarily supported by **BM25**. This model determines the relevance of a document `d` given a query `q` through the frequency of the terms that constitute it `c(w,d)`, the inverse frequency of the document `IDF(w)`, and two free variables `k` and `b ∈ [0,1]`, which control the impact of term frequency and the degree of normalization that is applied to the scores of each document.
 
 Formally, the BM25 weighing function is defined as:
-
-\[
-\sum_{w \in q \cap d} c(w, q) \frac{(k+1) c(w, d)}{c(w, d) + k(1-b + b \frac{|d|}{avdl})} \log \frac{M+1}{df(w)}
-\]
+![BM25 equation](BM25equation.svg)
 
 Where:
-- \(c(w, q)\) denotes the frequency of the terms in the query \(q\),
-- \(c(w, d)\) represents term frequency (TF),
-- \(|d|\) stands for document length,
-- and \(avdl\) represents the average document length.
+- `c(w, q)` denotes the frequency of the terms in the query `q`,
+- `c(w, d)` represents term frequency (TF),
+- `|d|` stands for document length,
+- and `avdl` represents the average document length.
 
 
 ### How to use the system?
