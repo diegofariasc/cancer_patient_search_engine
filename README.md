@@ -1,4 +1,4 @@
-# Search cancer BM25 engine
+# Search cancer BM25-based engine
 ### Problem description
 According to the American Cancer Society, more than 2 million patients will be diagnosed with some form of cancer in the US this year. These figures are expected to annually increase at a rate of 0.6%-1% (Siegel et al, 2024). Such a medical condition is often accompanied by feelings of depression, insecurity and anxiety, which leads patients to search for information related to their life expectancy, survival odds, treatment options, among other topics. (Melhem et al, 2024). Nevertheless, according to (King & Greene, 2024), the information that is available online tends to be imprecise. Alomst 70% of all articles on social networks or popular information sources contain erroneous or misleading information about this disease.
 
@@ -67,6 +67,9 @@ As part of this final project, a REST API has been made available. Reviewers may
 You may find the API endpoints, along with their input parameters and expected outputs, on the SwaggerHub page: [https://app.swaggerhub.com/apis/FARIASCODIEGO/SearchCancerAPI/1.0.0](https://app.swaggerhub.com/apis/FARIASCODIEGO/SearchCancerAPI/1.0.0). This API is public and requires no authentication.
 
 In the SwaggerHub portal, there is a "Try it out" option that allows you to call the endpoint directly without needing to write any code. Alternatively, if you're having difficulties accessing SwaggerHub, you can find the complete API documentation in the `APIDescription.html` file. This file can be opened in any web browser.
+
+##### Tutorial
+A simple video tutorial has been created and added to Illinois Media Space. Reviewers can access it following this url: https://mediaspace.illinois.edu/media/t/1_y2f1n4vk
 
 
 ## System implementation 
@@ -223,10 +226,7 @@ Ratings: 3, 3, 3, 3, 2, 2, 3, 3, 2, 3
 **Query: "Estudios mieloma múltiple (Multiple Myeloma Research Studies)**
 Ratings: 2, 1, 2, 3, 3, 1, 2, 2, 3, 3
 
-### Evaluation Metrics
-Using the ratings from both the index-based system and Google Scholar, Precision and NDCG@10 were computed for each query. Since the total set of relevant documents is unknown, Recall could not be calculated. For Precision, a score of at least 2 was considered sufficient to classify a document as relevant.
-
-#### Results
+Using the ratings from both the index-based system and Google Scholar, Precision and NDCG@10 were computed for each query. Since the total set of relevant documents is unknown, Recall could not be calculated. For precision, a score of at least 2 was considered sufficient to classify a document as relevant. Results are presented below
 
 **Search cancer**
 - Query: What is multiple myeloma?
@@ -257,4 +257,4 @@ Using the ratings from both the index-based system and Google Scholar, Precision
 
 ### Conclusion
 
-Overall, the Google Search engine performed better in most metrics, particularly in the "Multiple myeloma treatment" query, where it achieved a precision of 1.00 and NDCG@10 of 0.99. However, it is important to note that Google's search engine has a substantially larger database, with approximately 160 million indexed documents in its academic section, compared to the 2,000+ documents indexed by the Search Cancer system. This difference in database size makes it more likely for Google to successfully answer a query. Nonetheless, despite these differences, the Search Cancer system achieved reasonably comparable NDCG@10 and precision values, which suggests that the results are satisfactory. Further improvements, such as expanding the indexed corpus, could enable it to compete more effectively with large-scale solutions like Google Search.
+Overall, the Google Search engine performed better in most metrics, particularly in the "Multiple myeloma treatment" query, where it achieved an astonoshing precision of 1.00 and NDCG@10 of 0.99. However, it is important to note that Google's search engine has a substantially larger database, with approximately 160 million indexed documents in its academic section, compared to the 2,000+ documents indexed by the Search Cancer system. This difference in database size makes it more likely for Google to successfully answer a query. Nonetheless, despite these differences, the Search Cancer system achieved reasonably comparable NDCG@10 and precision values, which suggests that the results are satisfactory. Further improvements, such as expanding the indexed corpus, could enable it to compete more effectively with large-scale solutions like Google Search.
